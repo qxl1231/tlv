@@ -25,6 +25,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
 function buff2json(hexbuff) {
     var json = {};
 
@@ -69,6 +70,33 @@ function buff2json(hexbuff) {
                 }
                 break;
 
+            case 0xB4://密码 0xCA  0xB4   0x07   0x31 0x67 0x2E 0x4D 0x69 0x6D 0x41
+
+                if (len == 7) {
+                    var array = getvalue(body, i, len);
+                    str2 = String.fromCharCode(array[0]);
+                    console.log(str2);
+                    var pwd = convertAscii2char(array);
+                    console.log(pwd);
+                    json.pwd = pwd;
+                }
+                break;
+
+            case 0xB5://洗衣程序价格 0xCA   0xB5    0x03        0x05      0x95      0x1
+
+                if (len == 3) {
+                    var array = getvalue(body, i, len);
+                    var mode = array[0];
+                    //console.log(mode);
+                    var value = (array[2] * 256 + array[1]) / 100;
+                    json.mode = mode;
+                    json.mode_price = value;
+                }
+                break;
+
+            default :
+                console.log("your tlv type is not supported!:" + body[i].toString(16));
+
         }
         i = i + 2 + len;
 
@@ -77,6 +105,46 @@ function buff2json(hexbuff) {
     console.log(json);
     return json;
 
+}
+//ascii码值||字符串 转换
+function convertAscii2char(array) {
+    var str = "";
+    for (var x = 0; x < array.length; x++) {
+        var a = array[x];
+        str = str.concat(String.fromCharCode(a));
+    }
+
+    return str;
+}
+//字符串||ascii码值 转换
+function convertchar2Ascii(str, B5) {
+    var buf = new Buffer(7);
+    //console.log(str);
+
+    for (var x = 0; x < str.trim().length; x++) {
+        var temp = str.trim().charAt(x);
+        buf[x] = temp.charCodeAt();
+
+    }
+    console.log(buf);
+    B5 = Buffer.concat([B5, buf]);
+
+    return B5;
+}
+
+function getvalue(body, i, len) {
+    var valuearray = [];
+    //var type = body[i];
+    //var lenth = body[i + 1];
+    //var tlv_json = {};
+    for (var j = 0; j < len; j++) {
+        var a = body[i + 2 + j];
+        valuearray.push(a);
+    }
+    //tlv_json.type = type;
+    //tlv_json.lenth = lenth;
+    //tlv_json.value = valuearray;
+    return valuearray;
 }
 
 
@@ -87,6 +155,9 @@ function json2buff(json) {
     var pay_result = json.pay_result;
     var balance = json.balance;
     var fee_price = json.fee_price;
+    var mode_price = json.mode_price;
+    var mode = json.mode;
+    var pwd = json.pwd;
     if (appointment_wash) {
         var B6 = new Buffer([0xB6, 0x01, appointment_wash]);
         body = B6;
@@ -109,10 +180,31 @@ function json2buff(json) {
         //console.log(body);
     }
     if (fee_price) {
+        var temp = fee_price * 100;
+        var high = Math.floor(temp / 256);
+        var low = Math.floor(temp % 256);
         var A0 = new Buffer([0xA0, 0x01, low, high]);
         body = Buffer.concat([body, A0]);
         //console.log(body);
     }
+    if (mode_price && mode) {
+        var temp = mode_price * 100;
+        var high = Math.floor(temp / 256);
+        var low = Math.floor(temp % 256);
+        var B5 = new Buffer([0xB5, 0x03, mode, low, high]);
+        body = Buffer.concat([body, B5]);
+        //console.log(body);
+    }
+    if (pwd) {
+        var B5 = new Buffer([0xB4, 0x07]);
+        B5 = convertchar2Ascii(pwd, B5);
+        console.log(B5);
+
+
+        body = Buffer.concat([body, B5]);
+        //console.log(body);
+    }
+
 
     var all = Buffer.concat([head, body]);
     console.log(all);
@@ -132,7 +224,7 @@ function json2buff(json) {
 
 }
 
-var hexbuff = new Buffer([0xAA, 0x0F, 0xDA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xCA, 0xB6, 0x01, 0x01, 0xA0, 0x01, 0x01, 0xB0, 0x02, 0x12, 0x34, 0xB1, 0x02, 0x12, 0x34, 0x55], 'hex');
+var hexbuff = new Buffer([0xAA, 0x0F, 0xDA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xCA, 0xB6, 0x01, 0x01, 0xA0, 0x01, 0x01, 0xB0, 0x02, 0x12, 0x34, 0xB1, 0x02, 0x12, 0x34, 0xB5, 0x03, 0x05, 0x95, 0x1, 0xB4, 0x07, 0x31, 0x67, 0x2E, 0x4D, 0x69, 0x6D, 0x41, 0x55], 'hex');
 
 var json = buff2json(hexbuff);
 
