@@ -57,6 +57,10 @@ var reportType = function (str) {
         return '0502';
     } else if ((string2buf(str).readUInt8(9) === 0x02) && (string2buf(str).readUInt8(10) === 0xCA)) {
         return '02CA';
+    } else if ((string2buf(str).readUInt8(9) === 0x03) && (string2buf(str).readUInt8(10) === 0xCA)) {
+        return '03CA';
+    } else if ((string2buf(str).readUInt8(9) === 0x04) && (string2buf(str).readUInt8(10) === 0xCA)) {
+        return '04CA';
     } else {
         return;
     }
